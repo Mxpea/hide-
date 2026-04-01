@@ -5,7 +5,8 @@
 	"mixins": [
 		"ChunkMapAccessor",
 		"TrackedEntityAccessor",
-		"TrackedEntityVisibilityMixin"
+		"TrackedEntityVisibilityMixin",
+		"WaypointPacketFilterMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

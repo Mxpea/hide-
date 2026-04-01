@@ -5,7 +5,7 @@ A server-side Fabric mod that adds:
 - `/hide <player> enable`
 - `/hide <player> disable`
 
-When enabled, the target player is removed from other players' tab list and hidden in-world (including equipment/held items, because entity tracking is stopped for viewers).
+When enabled, the target player is removed from other players' tab list, hidden in-world (including equipment/held items), and removed from the 1.21.11 player locator bar.
 
 ## Behavior
 
