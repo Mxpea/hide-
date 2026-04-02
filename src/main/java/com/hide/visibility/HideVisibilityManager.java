@@ -8,11 +8,10 @@ import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundTrackedWaypointPacket;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.players.PlayerList;
 
-import java.util.Optional;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public final class HideVisibilityManager {
@@ -21,10 +20,15 @@ public final class HideVisibilityManager {
 	private HideVisibilityManager() {
 	}
 
-	public static void applyRulesForTarget(ServerPlayer target) {
-		PlayerList playerList = target.level().getServer().getPlayerList();
+	public static void applyHideTransition(PlayerList playerList, ServerPlayer target) {
 		for (ServerPlayer viewer : playerList.getPlayers()) {
 			hideFromViewer(viewer, target);
+		}
+	}
+
+	public static void applyShowTransition(PlayerList playerList, ServerPlayer target) {
+		for (ServerPlayer viewer : playerList.getPlayers()) {
+			showToViewer(viewer, target);
 		}
 	}
 
@@ -38,11 +42,13 @@ public final class HideVisibilityManager {
 	}
 
 	public static void hideFromViewer(ServerPlayer viewer, ServerPlayer target) {
-		viewer.connection.send(new ClientboundPlayerInfoRemovePacket(List.of(target.getUUID())));
-		runBypassingWaypointFilter(() -> viewer.connection.send(ClientboundTrackedWaypointPacket.removeWaypoint(target.getUUID())));
 		if (viewer == target) {
 			return;
 		}
+
+		viewer.connection.send(new ClientboundPlayerInfoRemovePacket(List.of(target.getUUID())));
+		// Resync waypoints instead of sending direct remove packets, which are fragile with some client stacks.
+		viewer.level().getWaypointManager().updatePlayer(viewer);
 
 		TrackedEntityAccessor trackedEntity = getTrackedEntity(target);
 		if (trackedEntity != null) {
@@ -51,13 +57,13 @@ public final class HideVisibilityManager {
 	}
 
 	public static void showToViewer(ServerPlayer viewer, ServerPlayer target) {
-		// Rebuild player-list state in the same way a join would, so tab restoration is reliable.
-		viewer.connection.send(new ClientboundPlayerInfoRemovePacket(List.of(target.getUUID())));
-		viewer.connection.send(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(List.of(target)));
 		if (viewer == target) {
 			viewer.level().getWaypointManager().updatePlayer(viewer);
 			return;
 		}
+
+		viewer.connection.send(new ClientboundPlayerInfoRemovePacket(List.of(target.getUUID())));
+		viewer.connection.send(ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(List.of(target)));
 
 		TrackedEntityAccessor trackedEntity = getTrackedEntity(target);
 		if (trackedEntity != null) {
@@ -76,21 +82,11 @@ public final class HideVisibilityManager {
 		return null;
 	}
 
-	public static void enforceHiddenPlayers(MinecraftServer server) {
-		PlayerList playerList = server.getPlayerList();
-		for (var hiddenUuid : HiddenPlayerService.getHiddenPlayersSnapshot()) {
-			ServerPlayer target = playerList.getPlayer(hiddenUuid);
-			if (target == null) {
-				continue;
-			}
-
-			for (ServerPlayer viewer : playerList.getPlayers()) {
-				hideFromViewer(viewer, target);
-			}
-		}
-	}
-
 	public static boolean shouldHideWaypointForViewer(ServerPlayer viewer, ClientboundTrackedWaypointPacket packet) {
+		if (packet.waypoint() == null || packet.waypoint().id() == null) {
+			return false;
+		}
+
 		Optional<UUID> target = packet.waypoint().id().left();
 		if (target.isEmpty()) {
 			return false;

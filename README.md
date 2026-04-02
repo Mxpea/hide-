@@ -1,19 +1,47 @@
 # hide (Fabric 1.21.11)
 
-A server-side Fabric mod that adds:
+仅服务端 Fabric 模组，提供管理员隐身控制：
 
 - `/hide <player> enable`
 - `/hide <player> disable`
 
-When enabled, the target player is removed from other players' tab list, hidden in-world (including equipment/held items), and removed from the 1.21.11 player locator bar.
+## 核心功能
 
-## Behavior
+启用隐藏后（`enable`）：
 
-- Scope: runtime only (not persisted across restart)
-- Visibility: hidden player is hidden from other players; hidden player still sees self
-- Command access: admin only (`Permissions.COMMANDS_ADMIN`)
-- Verification note: use a second account/client to verify world invisibility to others
+- 该玩家会从其他玩家的 Tab 列表中移除
+- 该玩家在世界中对其他玩家不可见（包含主副手与装备可见性）
+- 该玩家会从 1.21.11 的玩家定位栏（waypoint/locator bar）中移除
 
-## Limitation (important)
+取消隐藏后（`disable`）：
 
-This is fully server-side and works with vanilla clients for visual/tab hiding, but it does **not** hide all signals of player existence (for example: sounds, collision, some plugin/mod side channels). If you need "admin vanish" semantics, those extra channels must be handled separately.
+- 会重新同步可见性与玩家信息，让该玩家恢复显示
+
+## 权限与范围
+
+- 命令权限：仅管理员可执行（`Permissions.COMMANDS_ADMIN`）
+- 生效范围：仅运行时内存状态，**重启服务器后不会保留隐藏状态**
+- 可见性语义：隐藏玩家对其他玩家不可见；隐藏玩家仍可看到自己
+
+## 消息与行为限制
+
+对已隐藏玩家，默认会抑制以下可见性相关输出：
+
+- 聊天消息（普通聊天）
+- 进度/成就完成提示（系统广播层面）
+- 进入游戏与退出游戏提示（系统广播层面）
+
+## 重要说明（仅服务端能力边界）
+
+本模组是纯服务端实现，可在原版客户端下工作；但它不等价于“完全无痕管理隐身”。以下信号可能仍需额外处理：
+
+- 声音、碰撞、以及其他模组/插件额外通道暴露的信息
+- 客户端侧资源/缓存导致的短暂显示异常
+
+## 排查建议
+
+若出现偶发的显示不同步、协议错误或跨维度后短时异常：
+
+1. 先执行 `/hide <player> disable` 再 `enable` 强制重同步
+2. 用双客户端（A 观察 B）复现并确认是否仅在特定维度/特定客户端发生
+3. 排查是否与其他改包、协议层或 UI 类模组冲突
