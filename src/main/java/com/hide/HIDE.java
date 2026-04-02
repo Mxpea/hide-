@@ -11,12 +11,15 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.GameProfileArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permissions;
+import net.minecraft.server.players.NameAndId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Collection;
 
 public class HIDE implements ModInitializer {
 	public static final String MOD_ID = "hide";
@@ -53,29 +56,31 @@ public class HIDE implements ModInitializer {
 	private static void registerCommand(CommandDispatcher<CommandSourceStack> dispatcher) {
 		dispatcher.register(Commands.literal("hide")
 			.requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_ADMIN))
-			.then(Commands.argument("player", EntityArgument.player())
-				.then(Commands.literal("enable").executes(context -> setHidden(context.getSource(), EntityArgument.getPlayer(context, "player"), true)))
-				.then(Commands.literal("disable").executes(context -> setHidden(context.getSource(), EntityArgument.getPlayer(context, "player"), false)))));
+			.then(Commands.argument("player", GameProfileArgument.gameProfile())
+				.then(Commands.literal("enable").executes(context -> setHidden(context.getSource(), GameProfileArgument.getGameProfiles(context, "player"), true)))
+				.then(Commands.literal("disable").executes(context -> setHidden(context.getSource(), GameProfileArgument.getGameProfiles(context, "player"), false)))));
 	}
 
-	private static int setHidden(CommandSourceStack source, ServerPlayer target, boolean hidden) {
-		String targetName = target.getName().getString();
-		if (hidden) {
-			if (!HiddenPlayerService.hide(target)) {
-				source.sendFailure(Component.literal(targetName + " is already hidden."));
-				return 0;
+	private static int setHidden(CommandSourceStack source, Collection<NameAndId> profiles, boolean hidden) {
+		int changed = 0;
+		for (NameAndId profile : profiles) {
+			boolean result = hidden
+				? HiddenPlayerService.hide(source.getServer(), profile.id())
+				: HiddenPlayerService.unhide(source.getServer(), profile.id());
+			if (result) {
+				changed++;
 			}
-			source.sendSuccess(() -> Component.literal("Hidden " + targetName), true);
-			return 1;
 		}
 
-		if (!HiddenPlayerService.unhide(target)) {
-			source.sendFailure(Component.literal(targetName + " is not hidden."));
+		if (changed == 0) {
+			source.sendFailure(Component.literal(hidden ? "No players were newly hidden." : "No players were newly shown."));
 			return 0;
 		}
 
-		source.sendSuccess(() -> Component.literal("Shown " + targetName), true);
-		return 1;
+		int total = profiles.size();
+		int changedCount = changed;
+		source.sendSuccess(() -> Component.literal((hidden ? "Hidden " : "Shown ") + changedCount + "/" + total + " target(s)."), true);
+		return changed;
 	}
 }
 

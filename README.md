@@ -5,6 +5,8 @@
 - `/hide <player> enable`
 - `/hide <player> disable`
 
+`<player>` 支持在线玩家、玩家名缓存与 UUID（可用于离线目标）。
+
 ## 核心功能
 
 启用隐藏后（`enable`）：

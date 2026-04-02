@@ -5,6 +5,7 @@
 	"mixins": [
 		"ChunkMapAccessor",
 		"PlayerAdvancementBroadcastMixin",
+		"PlayerAdvancementContextMixin",
 		"PlayerListAnnouncementMixin",
 		"ServerGamePacketListenerDisconnectMixin",
 		"TrackedEntityAccessor",
