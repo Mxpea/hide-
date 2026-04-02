@@ -31,9 +31,6 @@ public abstract class WaypointPacketFilterMixin {
 
 	@Unique
 	private boolean hide$shouldCancel(Packet<?> packet) {
-		if (HideVisibilityManager.isWaypointFilterBypassed()) {
-			return false;
-		}
 
 		if (!(packet instanceof ClientboundTrackedWaypointPacket waypointPacket)) {
 			return false;
